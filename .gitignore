@@ -1,0 +1,76 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Next.js
+webapp/.next
+webapp/out
+
+# Env
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Pyrogram session
+*.session
+*.session-journal
+
+# Database
+*.sqlite3
+*.db
+*.db-shm
+*.db-wal
+.vercel
+.env*.local
+
+# Local backup and archive artifacts
+*.bak
+*.zip
+bot/
+
+# Sampel
+sampel/
+botlamatidakterpakai/
+scripts/
+paymentgateaway.txt
+
+# Test Files
+test_teacher_docs.py
