@@ -1,47 +1,64 @@
+<div align="center">
+
 # GHE Verify Python
 
-## Apa itu GitHub Education Verify?
+Bot Telegram + API backend untuk membantu alur verifikasi GitHub Education.
 
-GitHub Education Verify adalah proses untuk mengajukan status pelajar atau pengajar agar akun GitHub bisa mendapatkan akses GitHub Education benefits.
+</div>
 
-Project ini membantu mengelola proses tersebut lewat bot Telegram dan backend API, termasuk alur data pengguna, generate dokumen pendukung, dan monitoring status pengajuan.
+## Apa Itu GitHub Education Verify?
 
-## Fitur
+GitHub Education Verify adalah proses verifikasi status pelajar atau pengajar agar akun GitHub bisa mengakses benefit GitHub Education.
+
+Project ini dibuat untuk membantu proses tersebut secara lebih terstruktur melalui:
+
+- Bot Telegram untuk interaksi pengguna
+- Backend API untuk kebutuhan web/integrasi
+- Sistem log, status, dan pengelolaan data verifikasi
+
+## Fitur Utama
 
 - Verifikasi Student dan Teacher
-- Bot Telegram untuk alur pengguna dan owner/admin
-- API backend untuk integrasi web
-- Sistem kredit (referral, check-in harian, top up)
+- Bot Telegram untuk user dan owner/admin
+- API backend berbasis Flask
+- Sistem kredit (referral, daily check-in, top up)
 - Konfigurasi multi-sekolah
 - Logging dan penyimpanan status verifikasi
 
 ## Requirements
 
-- Python 3.10 atau lebih baru
-- Akun Telegram API (API_ID, API_HASH, BOT_TOKEN)
+- Python 3.10+
+- Pip
+- Telegram credentials: BOT_TOKEN, API_ID, API_HASH
 - Dependensi Python di [requirements.txt](requirements.txt)
 
-## Tata Cara Penginstalan
+## Instalasi
 
-1. Clone repository ini.
-2. Masuk ke folder project.
-3. Install dependencies:
+1. Clone repository
+2. Masuk ke folder project
+3. Install dependency
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. Buat file konfigurasi `.env`:
+## Konfigurasi Environment (.env)
+
+### Linux/macOS
 
 ```bash
-# Linux/macOS (buat .env dari template)
 cp .env.example .env
+```
 
-# Windows PowerShell (buat .env dari template)
+### Windows PowerShell
+
+```powershell
 Copy-Item .env.example .env
 ```
 
-5. Isi nilai penting di file .env:
+### Variabel Minimal
+
+Isi nilai berikut di `.env`:
 
 - BOT_TOKEN
 - API_ID
@@ -49,28 +66,62 @@ Copy-Item .env.example .env
 - OWNER_ID
 - API_SECRET
 
-6. Jalankan semua service sekaligus (disarankan):
+### Contoh Konfigurasi Data Sekolah di .env
+
+```env
+SCHOOL_COUNT=2
+
+SCHOOL_1_ENABLED=1
+SCHOOL_1_CODE=sma_negeri_1_ngawi
+SCHOOL_1_MODE=private
+SCHOOL_1_NAME=SMA Negeri 1 Ngawi
+SCHOOL_1_GITHUB_SCHOOL_ID=123456
+SCHOOL_1_ADDRESS=Jl Raya Suki KP 07, Ngawi, Pekalongan 12345
+SCHOOL_1_PHONE=(1234) 123456
+SCHOOL_1_PRINCIPAL_NAME=Drs. Amba, M.Pd
+SCHOOL_1_PRINCIPAL_NIP=123456789
+SCHOOL_1_CITY=Ngawi
+SCHOOL_1_PROVINCE=Jawa Tengah
+SCHOOL_1_LOGO_PATH=logo/logosekolah.png
+SCHOOL_1_LAT=-11.11
+SCHOOL_1_LON=123.123
+
+SCHOOL_2_ENABLED=1
+SCHOOL_2_CODE=sma_negeri_2_ngawi
+SCHOOL_2_MODE=public
+SCHOOL_2_NAME=SMA Negeri 2 Ngawi
+SCHOOL_2_GITHUB_SCHOOL_ID=654321
+SCHOOL_2_ADDRESS=Jl Raya Suki KP 08, Ngawi, Pekalongan 12345
+SCHOOL_2_PHONE=(1234) 654321
+SCHOOL_2_PRINCIPAL_NAME=Drs. Bimba, M.Pd
+SCHOOL_2_PRINCIPAL_NIP=987654321
+SCHOOL_2_CITY=Ngawi
+SCHOOL_2_PROVINCE=Jawa Tengah
+SCHOOL_2_LOGO_PATH=logo/logosekolah2.png
+SCHOOL_2_LAT=-11.12
+SCHOOL_2_LON=123.124
+```
+
+## Menjalankan Project
+
+### Jalankan Semua Sekaligus (disarankan)
 
 ```bash
 python run_all.py
 ```
 
-Atau jalankan manual satu per satu:
-
-7. Jalankan bot:
+### Jalankan Manual
 
 ```bash
 python bot.py
 ```
 
-8. Jalankan API server:
-
 ```bash
 python api_server.py
 ```
 
-## Catatan
+## Catatan Penting
 
-- Jangan upload file .env ke GitHub.
-- Simpan session Telegram dengan aman.
-- Gunakan API_SECRET yang kuat untuk production.
+- Jangan upload file `.env` ke GitHub
+- Simpan session Telegram dengan aman
+- Gunakan API_SECRET yang kuat untuk production
