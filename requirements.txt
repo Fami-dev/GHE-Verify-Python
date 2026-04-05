@@ -1,0 +1,7 @@
+telethon
+python-dotenv
+requests
+Pillow
+Flask
+dotenv 
+
