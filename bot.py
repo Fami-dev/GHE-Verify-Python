@@ -37,7 +37,7 @@ from telethon.errors import (
 from telethon.errors.rpcerrorlist import AuthKeyDuplicatedError
 from telethon.errors.rpcerrorlist import MessageNotModifiedError, QueryIdInvalidError
 
-from lang import t
+from language import t
 from database import (
     get_or_create_user,
     update_user,
@@ -517,8 +517,8 @@ def _build_topup_package_buttons(lang: str) -> list:
 def _build_topup_active_buttons(lang: str, tx_id: int) -> list:
     return [
         [
-            Button.inline("🔄 Refresh", f"topup_refresh_{tx_id}".encode("utf-8")),
-            Button.inline("❌ Cancel Deposit", f"topup_cancel_{tx_id}".encode("utf-8")),
+            Button.inline(t("btn_topup_refresh", lang), f"topup_refresh_{tx_id}".encode("utf-8")),
+            Button.inline(t("btn_topup_cancel_deposit", lang), f"topup_cancel_{tx_id}".encode("utf-8")),
         ],
         [Button.inline(t("btn_back", lang), b"back_home")],
     ]
@@ -532,7 +532,7 @@ def _build_topup_support_buttons(lang: str) -> list:
     return [
         [
             Button.url(
-                f"📩 Hubungi Owner (@{OWNER_CONTACT_USERNAME})",
+                t("btn_contact_owner", lang, username=OWNER_CONTACT_USERNAME),
                 f"https://t.me/{OWNER_CONTACT_USERNAME}",
             )
         ],
@@ -544,20 +544,25 @@ def _build_topup_crypto_buttons(lang: str) -> list:
     return [
         [
             Button.url(
-                f"📩 Hubungi Owner (@{OWNER_CONTACT_USERNAME})",
+                t("btn_contact_owner", lang, username=OWNER_CONTACT_USERNAME),
                 f"https://t.me/{OWNER_CONTACT_USERNAME}",
             )
         ],
-        [Button.inline("◀️ Kembali ke Menu Top Up", b"topup_credit")],
+        [Button.inline(t("btn_topup_back_menu", lang), b"topup_credit")],
         [Button.inline(t("btn_back", lang), b"back_home")],
     ]
 
 
-def _build_crypto_manual_text() -> str:
+def _build_crypto_manual_text(lang: str) -> str:
     addresses = _parse_crypto_payment_addresses()
+    is_en = lang == "en"
     note = _safe_html_text(
         CRYPTO_PAYMENT_NOTE
-        or "Pembayaran crypto bersifat manual. Setelah transfer, kirim bukti transfer ke owner."
+        or (
+            "Crypto payment is manual. After transfer, send payment proof to owner."
+            if is_en
+            else "Pembayaran crypto bersifat manual. Setelah transfer, kirim bukti transfer ke owner."
+        )
     )
 
     if addresses:
@@ -566,19 +571,29 @@ def _build_crypto_manual_text() -> str:
             for network, address in addresses
         )
         wallets_section = (
-            "<b>Alamat Wallet:</b>\n"
+            ("<b>Wallet Addresses:</b>\n" if is_en else "<b>Alamat Wallet:</b>\n")
             f"<blockquote>{wallet_lines}</blockquote>"
         )
     else:
         wallets_section = (
-            "⚠️ <b>Alamat wallet belum dikonfigurasi.</b> Silakan hubungi owner terlebih dahulu."
+            "⚠️ <b>Wallet addresses are not configured yet.</b> Please contact the owner first."
+            if is_en
+            else "⚠️ <b>Alamat wallet belum dikonfigurasi.</b> Silakan hubungi owner terlebih dahulu."
         )
 
     return (
-        "🌍 <b>Pembayaran Luar Negeri (Crypto Manual)</b>\n"
+        (
+            "🌍 <b>International Payment (Manual Crypto)</b>\n"
+            if is_en
+            else "🌍 <b>Pembayaran Luar Negeri (Crypto Manual)</b>\n"
+        )
         f"<blockquote>{note}</blockquote>\n"
         f"{wallets_section}\n"
-        "Setelah transfer, kirim bukti transfer ke owner agar credit diproses manual."
+        (
+            "After transfer, send payment proof to owner so credits can be processed manually."
+            if is_en
+            else "Setelah transfer, kirim bukti transfer ke owner agar credit diproses manual."
+        )
     )
 
 
@@ -592,6 +607,7 @@ def _extract_provider_message(result: dict) -> str:
 
 
 def _topup_pending_text(tx: dict, lang: str) -> str:
+    is_en = lang == "en"
     now_ts = float(time.time())
     expires_at = float(tx.get("expires_at") or 0)
     remain = max(0, int(expires_at - now_ts))
@@ -601,39 +617,70 @@ def _topup_pending_text(tx: dict, lang: str) -> str:
     if expires_at > 0:
         expires_text = datetime.fromtimestamp(expires_at).strftime("%d-%m-%Y %H:%M:%S")
     last_error = str(tx.get("last_error") or "").strip()
-    extra = f"\n⚠️ Last Error: <code>{_safe_html_text(last_error)}</code>" if last_error else ""
+    extra = (
+        f"\n⚠️ {'Last Error' if is_en else 'Error Terakhir'}: <code>{_safe_html_text(last_error)}</code>"
+        if last_error
+        else ""
+    )
+    status_default = "Pending" if is_en else "Menunggu"
+    label_deposit = "Deposit"
+    label_reff = "Ref ID" if is_en else "Reff ID"
+    label_nominal = "Amount" if is_en else "Nominal"
+    label_fee = "Fee"
+    label_transfer = "Transfer"
+    label_credit = "Credit"
+    label_status = "Status"
+    label_expired = "Expired At" if is_en else "Kadaluarsa"
+    label_timeout = "Timeout"
     return (
-        "💳 <b>QRIS Top Up Aktif</b>\n\n"
+        ("💳 <b>QRIS Top Up Active</b>\n\n" if is_en else "💳 <b>QRIS Top Up Aktif</b>\n\n")
         "<blockquote>"
-        f"🆔 Deposit: <code>{_safe_html_text(tx.get('kode_deposit') or '-')}</code>\n"
-        f"🧾 Reff ID: <code>{_safe_html_text(tx.get('reff_id') or '-')}</code>\n"
-        f"💰 Nominal: <b>{_format_rupiah(_to_int(tx.get('nominal')))}</b>\n"
-        f"💸 Fee: <b>{_format_rupiah(_to_int(tx.get('fee')))}</b>\n"
-        f"🏦 Transfer: <b>{_format_rupiah(_to_int(tx.get('jumlah_transfer')))}</b>\n"
-        f"🎫 Credit: <b>+{_to_int(tx.get('credit_amount'))}</b>\n"
-        f"⏳ Status: <b>{_safe_html_text(tx.get('provider_status') or 'Pending')}</b>\n"
-        f"🗓 Expired At: <b>{_safe_html_text(expires_text)}</b>\n"
-        f"⏱ Timeout: <b>{rm:02d}:{rs:02d}</b>"
+        f"🆔 {label_deposit}: <code>{_safe_html_text(tx.get('kode_deposit') or '-')}</code>\n"
+        f"🧾 {label_reff}: <code>{_safe_html_text(tx.get('reff_id') or '-')}</code>\n"
+        f"💰 {label_nominal}: <b>{_format_rupiah(_to_int(tx.get('nominal')))}</b>\n"
+        f"💸 {label_fee}: <b>{_format_rupiah(_to_int(tx.get('fee')))}</b>\n"
+        f"🏦 {label_transfer}: <b>{_format_rupiah(_to_int(tx.get('jumlah_transfer')))}</b>\n"
+        f"🎫 {label_credit}: <b>+{_to_int(tx.get('credit_amount'))}</b>\n"
+        f"⏳ {label_status}: <b>{_safe_html_text(tx.get('provider_status') or status_default)}</b>\n"
+        f"🗓 {label_expired}: <b>{_safe_html_text(expires_text)}</b>\n"
+        f"⏱ {label_timeout}: <b>{rm:02d}:{rs:02d}</b>"
         f"{extra}"
         "</blockquote>\n\n"
-        "Scan QR di atas lalu tunggu cek otomatis setiap 5 detik."
+        (
+            "Scan the QR above then wait for automatic checks every 5 seconds."
+            if is_en
+            else "Scan QR di atas lalu tunggu cek otomatis setiap 5 detik."
+        )
     )
 
 
-def _topup_result_text(tx: dict, total_credits: int, success: bool) -> str:
-    title = "✅ <b>Top Up Berhasil</b>" if success else "❌ <b>Top Up Gagal</b>"
+def _topup_result_text(tx: dict, total_credits: int, success: bool, lang: str) -> str:
+    is_en = lang == "en"
+    title = (
+        "✅ <b>Top Up Success</b>" if success else "❌ <b>Top Up Failed</b>"
+    ) if is_en else (
+        "✅ <b>Top Up Berhasil</b>" if success else "❌ <b>Top Up Gagal</b>"
+    )
+    label_deposit = "Deposit"
+    label_reff = "Ref ID" if is_en else "Reff ID"
+    label_nominal = "Amount" if is_en else "Nominal"
+    label_fee = "Fee"
+    label_transfer = "Transfer"
+    label_credit = "Credit"
+    label_status = "Status"
+    label_total_credit = "Current Total Credit" if is_en else "Total Credit Saat Ini"
     status_label = tx.get("provider_status") or tx.get("status") or "-"
     return (
         f"{title}\n\n"
         "<blockquote>"
-        f"🆔 Deposit: <code>{_safe_html_text(tx.get('kode_deposit') or '-')}</code>\n"
-        f"🧾 Reff ID: <code>{_safe_html_text(tx.get('reff_id') or '-')}</code>\n"
-        f"💰 Nominal: <b>{_format_rupiah(_to_int(tx.get('nominal')))}</b>\n"
-        f"💸 Fee: <b>{_format_rupiah(_to_int(tx.get('fee')))}</b>\n"
-        f"🏦 Transfer: <b>{_format_rupiah(_to_int(tx.get('jumlah_transfer')))}</b>\n"
-        f"🎫 Credit: <b>+{_to_int(tx.get('credit_amount'))}</b>\n"
-        f"📌 Status: <b>{_safe_html_text(status_label)}</b>\n"
-        f"🎫 Total Credit Saat Ini: <b>{int(total_credits)}</b>"
+        f"🆔 {label_deposit}: <code>{_safe_html_text(tx.get('kode_deposit') or '-')}</code>\n"
+        f"🧾 {label_reff}: <code>{_safe_html_text(tx.get('reff_id') or '-')}</code>\n"
+        f"💰 {label_nominal}: <b>{_format_rupiah(_to_int(tx.get('nominal')))}</b>\n"
+        f"💸 {label_fee}: <b>{_format_rupiah(_to_int(tx.get('fee')))}</b>\n"
+        f"🏦 {label_transfer}: <b>{_format_rupiah(_to_int(tx.get('jumlah_transfer')))}</b>\n"
+        f"🎫 {label_credit}: <b>+{_to_int(tx.get('credit_amount'))}</b>\n"
+        f"📌 {label_status}: <b>{_safe_html_text(status_label)}</b>\n"
+        f"🎫 {label_total_credit}: <b>{int(total_credits)}</b>"
         "</blockquote>"
     )
 
@@ -716,7 +763,11 @@ async def _finalize_topup_success(tx_id: int) -> bool:
     tx = done["transaction"]
     total_credits = int(done["total_credits"])
     lang = get_lang(int(tx.get("user_id") or 0))
-    await _edit_topup_message(tx, _topup_result_text(tx, total_credits, success=True), buttons=build_back_button(lang))
+    await _edit_topup_message(
+        tx,
+        _topup_result_text(tx, total_credits, success=True, lang=lang),
+        buttons=build_back_button(lang),
+    )
     await _send_topup_result_logs(tx, total_credits, success=True)
     return True
 
@@ -750,7 +801,7 @@ async def _finalize_topup_failure(
     else:
         await _edit_topup_message(
             tx,
-            _topup_result_text(tx, total_credits, success=False),
+            _topup_result_text(tx, total_credits, success=False, lang=lang),
             buttons=build_back_button(lang),
         )
 
@@ -1168,7 +1219,7 @@ def build_dashboard_buttons(lang: str, user_id: int) -> list:
                 Button.inline(t("btn_referral", lang), b"referral"),
                 Button.inline(t("btn_checkin", lang), b"checkin"),
             ],
-            [Button.inline("💳 Top Up Credit", b"topup_credit")],
+            [Button.inline(t("btn_topup_credit", lang), b"topup_credit")],
             [Button.inline(t("btn_language", lang), b"change_lang")],
         ]
     )
@@ -1196,8 +1247,8 @@ def build_cancel_button(lang: str) -> list:
 def build_lang_buttons() -> list:
     return [
         [
-            Button.inline("🇬🇧 English", b"set_lang_en"),
-            Button.inline("🇮🇩 Indonesia", b"set_lang_id"),
+            Button.inline(t("btn_lang_en", "en"), b"set_lang_en"),
+            Button.inline(t("btn_lang_id", "id"), b"set_lang_id"),
         ],
     ]
 
@@ -1283,11 +1334,11 @@ def build_owner_buttons(lang: str) -> list:
         ],
         [
             Button.inline(t("btn_gen_teacher_doc", lang), b"gen_teacher_doc"),
-            Button.inline("🧾 Status Indicators", b"owner_status_menu"),
+            Button.inline(t("btn_owner_status_menu", lang), b"owner_status_menu"),
         ],
         [
-            Button.inline("⚙️ Advanced", b"owner_advanced"),
-            Button.inline("🔨 Ban/Unban", b"owner_ban"),
+            Button.inline(t("btn_owner_advanced", lang), b"owner_advanced"),
+            Button.inline(t("btn_owner_ban", lang), b"owner_ban"),
         ],
         [Button.inline(t("btn_back", lang), b"back_home")],
     ]
@@ -1297,7 +1348,7 @@ OWNER_STATUS_PAGE_SIZE = 8
 OWNER_STATUS_MAX_ITEMS = 30
 
 
-def _build_owner_status_page(page: int) -> tuple[str, list, int, int]:
+def _build_owner_status_page(page: int, lang: str = "en") -> tuple[str, list, int, int]:
     all_tasks = get_verify_task_statuses(limit=OWNER_STATUS_MAX_ITEMS)
     total = len(all_tasks)
     max_page = max(0, ((total - 1) // OWNER_STATUS_PAGE_SIZE) if total > 0 else 0)
@@ -1307,25 +1358,18 @@ def _build_owner_status_page(page: int) -> tuple[str, list, int, int]:
     page_tasks = all_tasks[start:end]
 
     if not page_tasks:
-        text = (
-            "🧾 <b>Status Indicators</b>\n\n"
-            "<blockquote>"
-            "Tidak ada status tersimpan.\n"
-            "Retensi otomatis: maksimal 30 indikator terbaru."
-            "</blockquote>"
-        )
-        buttons = [[Button.inline("◀ Back", b"owner_menu")]]
+        text = t("owner_status_empty", lang)
+        buttons = [[Button.inline(t("btn_owner_back", lang), b"owner_menu")]]
         return text, buttons, safe_page, total
 
-    lines = [
-        "🧾 <b>Status Indicators</b>",
-        "",
-        "<blockquote>",
-        f"Total tersimpan: <b>{total}</b> (auto cleanup max 30)",
-        f"Halaman: <b>{safe_page + 1}</b>/<b>{max_page + 1}</b>",
-        "</blockquote>",
-        "",
-    ]
+    header = t(
+        "owner_status_header",
+        lang,
+        total=total,
+        page=safe_page + 1,
+        max_page=max_page + 1,
+    )
+    lines = [header, ""]
 
     for idx, task in enumerate(page_tasks, start=start + 1):
         task_id = str(task.get("id") or "-")
@@ -1368,22 +1412,27 @@ def _build_owner_status_page(page: int) -> tuple[str, list, int, int]:
     if safe_page > 0:
         nav_row.append(
             Button.inline(
-                "⬅ Prev", f"owner_status_page_{safe_page - 1}".encode("utf-8")
+                t("btn_owner_prev", lang),
+                f"owner_status_page_{safe_page - 1}".encode("utf-8"),
             )
         )
     nav_row.append(
-        Button.inline("🔄 Refresh", f"owner_status_page_{safe_page}".encode("utf-8"))
+        Button.inline(
+            t("btn_topup_refresh", lang),
+            f"owner_status_page_{safe_page}".encode("utf-8"),
+        )
     )
     if safe_page < max_page:
         nav_row.append(
             Button.inline(
-                "Next ➡", f"owner_status_page_{safe_page + 1}".encode("utf-8")
+                t("btn_owner_next", lang),
+                f"owner_status_page_{safe_page + 1}".encode("utf-8"),
             )
         )
     if nav_row:
         buttons.append(nav_row)
 
-    buttons.append([Button.inline("◀ Back", b"owner_menu")])
+    buttons.append([Button.inline(t("btn_owner_back", lang), b"owner_menu")])
     return "\n".join(lines), buttons, safe_page, total
 
 
@@ -1398,20 +1447,12 @@ def build_owner_advanced_buttons(lang: str) -> list:
             Button.inline(t("btn_gen_teacher_doc", lang), b"gen_teacher_doc"),
             Button.inline(t("btn_owner_school_mode", lang), b"owner_school_modes"),
         ],
-        [Button.inline("◀ Back", b"owner_menu")],
+        [Button.inline(t("btn_owner_back", lang), b"owner_menu")],
     ]
 
 
 def build_owner_advanced_text(lang: str) -> str:
-    return (
-        "⚙️ <b>Advanced Tools</b>\n\n"
-        "Use these tools with caution. Some actions may affect live data.\n\n"
-        "Available:\n"
-        "• Backup Now\n"
-        "• Export/Restore DB\n"
-        "• School Modes manager\n\n"
-        "Press Back to return to Owner Menu."
-    )
+    return t("owner_advanced_text", lang)
 
 
 def build_owner_menu_text(lang: str) -> str:
@@ -1456,7 +1497,7 @@ def build_owner_menu_text(lang: str) -> str:
     )
 
 
-def build_verify_scope_text(verify_type: str) -> str:
+def build_verify_scope_text(verify_type: str, lang: str = "en") -> str:
     settings = get_verify_settings()
     if verify_type == "student":
         bot_state = settings.get("student_bot", settings.get("student", True))
@@ -1473,26 +1514,44 @@ def build_verify_scope_text(verify_type: str) -> str:
         f"🤖 Bot: <b>{'🟢 ON' if bot_state else '🔴 OFF'}</b>\n"
         f"🌐 Web: <b>{'🟢 ON' if web_state else '🔴 OFF'}</b>"
         "</blockquote>\n\n"
-        "Pilih target yang ingin diaktifkan / dimatikan."
+        t("verify_scope_pick_target", lang)
     )
 
 
-def build_verify_scope_buttons(verify_type: str) -> list:
+def build_verify_scope_buttons(verify_type: str, lang: str = "en") -> list:
     key = "student" if verify_type == "student" else "teacher"
     return [
         [
-            Button.inline("🤖 Bot ON", f"set_verify_{key}_bot_on".encode("utf-8")),
-            Button.inline("🤖 Bot OFF", f"set_verify_{key}_bot_off".encode("utf-8")),
+            Button.inline(
+                t("btn_scope_bot_on", lang),
+                f"set_verify_{key}_bot_on".encode("utf-8"),
+            ),
+            Button.inline(
+                t("btn_scope_bot_off", lang),
+                f"set_verify_{key}_bot_off".encode("utf-8"),
+            ),
         ],
         [
-            Button.inline("🌐 Web ON", f"set_verify_{key}_web_on".encode("utf-8")),
-            Button.inline("🌐 Web OFF", f"set_verify_{key}_web_off".encode("utf-8")),
+            Button.inline(
+                t("btn_scope_web_on", lang),
+                f"set_verify_{key}_web_on".encode("utf-8"),
+            ),
+            Button.inline(
+                t("btn_scope_web_off", lang),
+                f"set_verify_{key}_web_off".encode("utf-8"),
+            ),
         ],
         [
-            Button.inline("✅ Both ON", f"set_verify_{key}_both_on".encode("utf-8")),
-            Button.inline("⛔ Both OFF", f"set_verify_{key}_both_off".encode("utf-8")),
+            Button.inline(
+                t("btn_scope_both_on", lang),
+                f"set_verify_{key}_both_on".encode("utf-8"),
+            ),
+            Button.inline(
+                t("btn_scope_both_off", lang),
+                f"set_verify_{key}_both_off".encode("utf-8"),
+            ),
         ],
-        [Button.inline("◀ Back", b"owner_menu")],
+        [Button.inline(t("btn_owner_back", lang), b"owner_menu")],
     ]
 
 
@@ -1509,11 +1568,10 @@ async def math_handler(event):
     user = get_user(user_id)
     if not user:
         return
+    lang = get_lang(user_id)
 
     if user.get("math_solved", 0) == 1:
-        await event.answer(
-            "You have already completed the math verification.", alert=True
-        )
+        await event.answer(t("math_already_verified", lang), alert=True)
         # Continue to start logic or dashoard
         await event.delete()
         await show_dashboard(None, user_id, edit=False)
@@ -1522,9 +1580,7 @@ async def math_handler(event):
     data_payload = event.pattern_match.group(1).decode("utf-8")
 
     if user_id not in MATH_CAPTCHAS:
-        await event.answer(
-            "Verification session expired. Please type /start again.", alert=True
-        )
+        await event.answer(t("math_session_expired", lang), alert=True)
         return
 
     session_data = MATH_CAPTCHAS[user_id]
@@ -1532,8 +1588,8 @@ async def math_handler(event):
     # Check time (1 minute)
     if time.time() - session_data["time"] > 60:
         await event.edit(
-            "⏱ Time is up (maximum 1 minute). Please try again.",
-            buttons=[[Button.inline("Try Again", b"retry_math")]],
+            t("math_time_up", lang),
+            buttons=[[Button.inline(t("math_try_again", lang), b"retry_math")]],
             parse_mode="html",
         )
         return
@@ -1541,8 +1597,8 @@ async def math_handler(event):
     is_correct = data_payload == str(session_data["correct_answer"])
     if not is_correct:
         await event.edit(
-            "❌ Wrong answer! Please try again.",
-            buttons=[[Button.inline("Try Again", b"retry_math")]],
+            t("math_wrong_answer", lang),
+            buttons=[[Button.inline(t("math_try_again", lang), b"retry_math")]],
             parse_mode="html",
         )
         return
@@ -1552,7 +1608,7 @@ async def math_handler(event):
     if user_id in MATH_CAPTCHAS:
         del MATH_CAPTCHAS[user_id]
 
-    await event.answer("✅ Correct answer!", alert=True)
+    await event.answer(t("math_correct_answer", lang), alert=True)
     await event.delete()
 
     # Step 1: Check group membership
@@ -2127,7 +2183,7 @@ async def owner_status_menu_handler(event):
         await event.answer(t("admin_only", lang), alert=True)
         return
 
-    text, buttons, page, _ = _build_owner_status_page(0)
+    text, buttons, page, _ = _build_owner_status_page(0, lang)
     session = user_sessions.get(user_id) or {}
     session["owner_status_page"] = page
     user_sessions[user_id] = session
@@ -2143,7 +2199,7 @@ async def owner_status_page_handler(event):
         return
 
     page = int(event.pattern_match.group(1).decode("utf-8", errors="ignore") or "0")
-    text, buttons, safe_page, _ = _build_owner_status_page(page)
+    text, buttons, safe_page, _ = _build_owner_status_page(page, lang)
     session = user_sessions.get(user_id) or {}
     session["owner_status_page"] = safe_page
     user_sessions[user_id] = session
@@ -2161,13 +2217,15 @@ async def owner_status_delete_handler(event):
     task_id = event.pattern_match.group(1).decode("utf-8", errors="ignore").strip()
     deleted = delete_verify_task_status(task_id)
     await event.answer(
-        "Status deleted." if deleted else "Status not found.",
+        t("owner_status_deleted", lang)
+        if deleted
+        else t("owner_status_not_found", lang),
         alert=False,
     )
 
     session = user_sessions.get(user_id) or {}
     page = int(session.get("owner_status_page", 0) or 0)
-    text, buttons, safe_page, _ = _build_owner_status_page(page)
+    text, buttons, safe_page, _ = _build_owner_status_page(page, lang)
     session["owner_status_page"] = safe_page
     user_sessions[user_id] = session
     await event.edit(text, buttons=buttons, parse_mode="html")
@@ -2220,8 +2278,8 @@ async def toggle_verify_student_handler(event):
         return
 
     await event.edit(
-        build_verify_scope_text("student"),
-        buttons=build_verify_scope_buttons("student"),
+        build_verify_scope_text("student", lang),
+        buttons=build_verify_scope_buttons("student", lang),
         parse_mode="html",
     )
 
@@ -2235,8 +2293,8 @@ async def toggle_verify_teacher_handler(event):
         return
 
     await event.edit(
-        build_verify_scope_text("teacher"),
-        buttons=build_verify_scope_buttons("teacher"),
+        build_verify_scope_text("teacher", lang),
+        buttons=build_verify_scope_buttons("teacher", lang),
         parse_mode="html",
     )
 
@@ -2300,7 +2358,7 @@ async def test_log_handler(event):
 
     credits_now = get_credits(user_id)
     await send_log(user_id, "TestUser123", "student", "approved", credits_now)
-    await event.answer("Test log sent!", alert=True)
+    await event.answer(t("test_log_sent", lang), alert=True)
 
 
 @bot.on(events.CallbackQuery(data=b"owner_add_credit"))
@@ -2464,7 +2522,7 @@ async def pick_owner_doc_school_handler(event):
 
     session = user_sessions.get(user_id) or {}
     if session.get("state") != "waiting_owner_doc_school_select":
-        await event.answer("Session tidak valid, ulangi dari Owner Menu.", alert=True)
+        await event.answer(t("owner_doc_session_invalid", lang), alert=True)
         return
 
     school_code = event.pattern_match.group(1).decode("utf-8", errors="ignore")
@@ -2685,14 +2743,17 @@ async def pick_owner_doc_school_handler(event):
             )
 
         await event.edit(
-            "✅ Dokumen berhasil digenerate!\nCek chat pribadi untuk melihat preview.",
+            t("doc_generated_success", lang),
             buttons=build_owner_buttons(lang),
         )
         user_sessions.pop(user_id, None)
 
     except Exception as e:
         logger.error(f"Error generating owner document: {e}")
-        await event.edit(f"❌ Error: {str(e)}", buttons=build_owner_buttons(lang))
+        await event.edit(
+            t("doc_generated_error", lang, error=str(e)),
+            buttons=build_owner_buttons(lang),
+        )
 
 
 @bot.on(events.CallbackQuery(pattern=rb"pick_school_(.+)"))
@@ -2706,7 +2767,7 @@ async def pick_school_handler(event):
 
     session = user_sessions.get(user_id) or {}
     if session.get("state") != "waiting_school_select":
-        await event.answer("Session tidak valid, mulai ulang verify.", alert=True)
+        await event.answer(t("verify_session_invalid", lang), alert=True)
         return
 
     school_code = event.pattern_match.group(1).decode("utf-8", errors="ignore")
@@ -2729,10 +2790,11 @@ async def pick_school_handler(event):
 async def owner_ban_handler(event):
     if event.sender_id != OWNER_ID:
         return
+    lang = get_lang(event.sender_id)
 
     await event.edit(
-        "🔨 <b>Ban / Unban User</b>\n\nSilakan masukkan User ID telegram yang ingin Anda Ban / Unban (pisahkan dengan spasi untuk alasan Ban). Contoh:\n<code>12345678 Spamming</code>",
-        buttons=[[Button.inline("◀ Batal", b"owner_menu")]],
+        t("owner_ban_prompt", lang),
+        buttons=[[Button.inline(t("btn_owner_back", lang), b"owner_menu")]],
         parse_mode="html",
     )
     user_sessions[event.sender_id] = {"state": "waiting_ban_unban"}
@@ -2754,14 +2816,15 @@ async def admin_message_watcher(event):
         getattr(event, "sender_id", None) == OWNER_ID
         and session.get("state") == "waiting_ban_unban"
     ):
+        lang = get_lang(event.sender_id)
         text = event.text.strip()
         parts = text.split(" ", 1)
         try:
             target_id = int(parts[0])
         except ValueError:
             await event.respond(
-                "❌ Format tidak valid. Harus berupa angka ID.",
-                buttons=[[Button.inline("◀ Kembali", b"owner_menu")]],
+                t("owner_ban_invalid_format", lang),
+                buttons=[[Button.inline(t("btn_owner_back", lang), b"owner_menu")]],
             )
             return
 
@@ -2770,8 +2833,8 @@ async def admin_message_watcher(event):
         target_user = get_user(target_id)
         if not target_user:
             await event.respond(
-                "❌ Pengguna tidak ditemukan dalam database.",
-                buttons=[[Button.inline("◀ Kembali", b"owner_menu")]],
+                t("owner_ban_user_not_found", lang),
+                buttons=[[Button.inline(t("btn_owner_back", lang), b"owner_menu")]],
             )
             return
 
@@ -2804,52 +2867,45 @@ async def admin_message_watcher(event):
 
             # Send message to banned user
             try:
-                ban_msg = (
-                    "🚫 <b>You have been banned from using this bot!</b>\n"
-                    "<blockquote>"
-                    f"📝 <b>Reason:</b> {reason}\n\n"
-                    "If you believe this is a mistake, you can appeal by contacting us below."
-                    "</blockquote>"
-                )
+                target_lang = get_lang(target_id)
+                ban_msg = t("user_banned_notice", target_lang, reason=reason)
                 await bot.send_message(
                     target_id,
                     ban_msg,
                     parse_mode="html",
-                    buttons=[[Button.url("Contact Support", "https://t.me/arcvour")]],
+                    buttons=[[Button.url(t("btn_contact_support", target_lang), "https://t.me/arcvour")]],
                 )
             except Exception as e:
                 logger.error(f"Failed to notify banned user: {e}")
 
             # Send detailed log to owner
-            owner_msg = (
-                "✅ <b>Pengguna Berhasil DIBAN 🚷</b>\n"
-                "<blockquote>"
-                f"🆔 <b>ID:</b> <code>{target_id}</code>\n"
-                f"👤 <b>Username:</b> {username_display}\n"
-                f"💰 <b>Credits Dihapus:</b> {credits_erased}\n"
-                f"📝 <b>Alasan:</b> {reason}"
-                "</blockquote>"
+            owner_msg = t(
+                "owner_ban_success",
+                lang,
+                target_id=target_id,
+                username=username_display,
+                credits=credits_erased,
+                reason=reason,
             )
             await event.respond(
                 owner_msg,
                 parse_mode="html",
-                buttons=[[Button.inline("◀ Kembali ke Menu", b"owner_menu")]],
+                buttons=[[Button.inline(t("btn_owner_back", lang), b"owner_menu")]],
             )
 
         else:
             # Unbanning user
             update_user(target_id, is_banned=0, ban_reason="")
             try:
-                unban_msg = (
-                    "✅ <b>You have been unbanned.</b> You can now use the bot again."
-                )
+                target_lang = get_lang(target_id)
+                unban_msg = t("user_unbanned_notice", target_lang)
                 await bot.send_message(target_id, unban_msg, parse_mode="html")
             except Exception:
                 pass
             await event.respond(
-                f"✅ Pengguna <code>{target_id}</code> berhasil DI-UNBAN ✅.",
+                t("owner_unban_success", lang, target_id=target_id),
                 parse_mode="html",
-                buttons=[[Button.inline("◀ Kembali ke Menu", b"owner_menu")]],
+                buttons=[[Button.inline(t("btn_owner_back", lang), b"owner_menu")]],
             )
 
         user_sessions.pop(event.sender_id, None)
@@ -2861,7 +2917,10 @@ async def ban_cb_interceptor(event):
     if getattr(event, "sender_id", None):
         user = get_user(event.sender_id)
         if user and user.get("is_banned") == 1:
-            await event.answer("⚠️ Anda telah diban dari bot.", alert=True)
+            await event.answer(
+                t("user_banned_alert", get_lang(event.sender_id)),
+                alert=True,
+            )
             raise events.StopPropagation
 
 
@@ -3007,7 +3066,7 @@ async def topup_crypto_manual_handler(event):
         return
 
     await event.edit(
-        _build_crypto_manual_text(),
+        _build_crypto_manual_text(lang),
         buttons=_build_topup_crypto_buttons(lang),
         parse_mode="html",
     )
@@ -3256,7 +3315,12 @@ async def topup_refresh_handler(event):
         total_credits = get_credits(int(tx.get("user_id") or 0))
         await _edit_topup_message(
             tx,
-            _topup_result_text(tx, total_credits, success=str(tx.get("status")) == "success"),
+            _topup_result_text(
+                tx,
+                total_credits,
+                success=str(tx.get("status")) == "success",
+                lang=lang,
+            ),
             buttons=build_back_button(lang),
         )
         return
@@ -4708,7 +4772,7 @@ async def continue_verify_handler(event):
     )
 
     if msg_id is None:
-        fallback_msg = await event.respond("⏳ Memulai proses verifikasi...")
+        fallback_msg = await event.respond(t("verify_starting", lang))
         msg_id = fallback_msg.id
 
     user_sessions.pop(user_id, None)
@@ -4741,9 +4805,7 @@ async def continue_verify_handler(event):
         return
 
     await event.edit(
-        "🚫 <b>Slot Verify Sedang Penuh</b>\n\n"
-        f"Slot aktif saat ini: <b>{_queue_slot_text()}</b>\n\n"
-        "Silakan tekan verify lagi saat slot kosong.",
+        t("slot_full", lang, slots=_queue_slot_text()),
         buttons=build_back_button(lang),
         parse_mode="html",
     )
@@ -4866,14 +4928,14 @@ async def topup_cmd(event):
 
     if user_id == OWNER_ID:
         await event.respond(
-            "💳 Gunakan tombol Top Up Credit di dashboard untuk simulasi flow user.",
+            t("topup_owner_hint", lang),
             parse_mode="html",
         )
         return
 
     if not TOPUP_ENABLED:
         await event.respond(
-            "❌ <b>Top Up belum dikonfigurasi admin.</b>",
+            t("topup_not_configured", lang),
             parse_mode="html",
         )
         return
@@ -4896,10 +4958,8 @@ async def topup_cmd(event):
         )
 
     await event.respond(
-        "💳 <b>Top Up Credit Otomatis (QRIS)</b>\n\n"
-        "<blockquote>"
-        "Pilih paket lalu scan QR yang dikirim sebagai gambar."
-        "</blockquote>\n\n"
+        t("topup_intro", lang)
+        + "\n\n"
         + "\n".join(rows_preview),
         buttons=_build_topup_package_buttons(lang),
         parse_mode="html",
@@ -4908,8 +4968,9 @@ async def topup_cmd(event):
 
 @bot.on(events.NewMessage(pattern=r"^/addcredit (\d+) (\d+)$"))
 async def add_credit_cmd(event):
+    lang = get_lang(event.sender_id)
     if event.sender_id != OWNER_ID:
-        await event.respond(t("admin_only", get_lang(event.sender_id)))
+        await event.respond(t("admin_only", lang))
         return
     target_id = int(event.pattern_match.group(1))
     amount = int(event.pattern_match.group(2))
@@ -4917,8 +4978,7 @@ async def add_credit_cmd(event):
     add_credits(target_id, amount)
     new_total = get_credits(target_id)
     await event.respond(
-        f"✅ Added **{amount}** credits to user `{target_id}`\n"
-        f"🎫 New total: **{new_total}**",
+        t("addcredit_done", lang, amount=amount, target_id=target_id, new_total=new_total),
         parse_mode="md",
     )
     logger.info(
@@ -4928,23 +4988,18 @@ async def add_credit_cmd(event):
 
 @bot.on(events.NewMessage(pattern=r"^/broadcast$"))
 async def broadcast_cmd(event):
+    lang = get_lang(event.sender_id)
     if event.sender_id != OWNER_ID:
-        await event.respond(t("admin_only", get_lang(event.sender_id)))
+        await event.respond(t("admin_only", lang))
         return
 
     if not event.is_reply:
-        await event.respond(
-            "Use /broadcast by replying to a message. The replied text will be sent as Markdown.",
-            parse_mode="md",
-        )
+        await event.respond(t("broadcast_usage", lang), parse_mode="md")
         return
 
     reply_msg = await event.get_reply_message()
     if not reply_msg or not reply_msg.message:
-        await event.respond(
-            "Reply must contain text message for broadcast.",
-            parse_mode="md",
-        )
+        await event.respond(t("broadcast_reply_missing", lang), parse_mode="md")
         return
 
     broadcast_text = reply_msg.message
@@ -4960,20 +5015,16 @@ async def broadcast_cmd(event):
             fail_count += 1
 
     await event.respond(
-        (
-            "📣 *Broadcast Completed*\n\n"
-            f"✅ Sent: *{sent_count}*\n"
-            f"❌ Failed: *{fail_count}*\n"
-            f"👥 Total: *{len(user_ids)}*"
-        ),
+        t("broadcast_done", lang, sent=sent_count, failed=fail_count, total=len(user_ids)),
         parse_mode="md",
     )
 
 
 @bot.on(events.NewMessage(pattern=r"^/stats$"))
 async def stats_cmd(event):
+    lang = get_lang(event.sender_id)
     if event.sender_id != OWNER_ID:
-        await event.respond(t("admin_only", get_lang(event.sender_id)))
+        await event.respond(t("admin_only", lang))
         return
 
     import sqlite3 as _sql
@@ -4995,13 +5046,16 @@ async def stats_cmd(event):
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     await event.respond(
-        f"📊 **Bot Statistics**\n\n"
-        f"👥 Total Users: **{total_users}**\n"
-        f"📝 Total Verifications: **{total_verifies}**\n"
-        f"✅ Approved: **{total_approved}**\n"
-        f"⏳ Pending: **{total_pending}**\n"
-        f"❌ Rejected: **{total_rejected}**\n\n"
-        f"⏰ Updated: `{now}`",
+        t(
+            "stats_text",
+            lang,
+            total_users=total_users,
+            total_verifies=total_verifies,
+            approved=total_approved,
+            pending=total_pending,
+            rejected=total_rejected,
+            updated=now,
+        ),
         parse_mode="md",
     )
 
@@ -5009,20 +5063,22 @@ async def stats_cmd(event):
 @bot.on(events.NewMessage(pattern=r"^/setlog (-?\d+)$"))
 async def set_log_cmd(event):
     global LOG_GROUP_ID
+    lang = get_lang(event.sender_id)
     if event.sender_id != OWNER_ID:
-        await event.respond(t("admin_only", get_lang(event.sender_id)))
+        await event.respond(t("admin_only", lang))
         return
     LOG_GROUP_ID = int(event.pattern_match.group(1))
     await event.respond(
-        f"✅ Log group set to: `{LOG_GROUP_ID}`",
+        t("setlog_done", lang, log_group_id=LOG_GROUP_ID),
         parse_mode="md",
     )
 
 
 @bot.on(events.NewMessage(pattern=r"^/liststatus(?: (\d+))?$"))
 async def list_status_cmd(event):
+    lang = get_lang(event.sender_id)
     if event.sender_id != OWNER_ID:
-        await event.respond(t("admin_only", get_lang(event.sender_id)))
+        await event.respond(t("admin_only", lang))
         return
 
     limit_raw = event.pattern_match.group(1)
@@ -5031,10 +5087,10 @@ async def list_status_cmd(event):
 
     tasks = get_verify_task_statuses(limit=limit)
     if not tasks:
-        await event.respond("📭 No persisted status found.", parse_mode="md")
+        await event.respond(t("liststatus_empty", lang), parse_mode="md")
         return
 
-    lines = [f"📌 **Persisted Verify Status (max {limit})**", ""]
+    lines = [t("liststatus_header", lang, limit=limit), ""]
     for idx, task in enumerate(tasks, start=1):
         task_id = str(task.get("id") or "-")
         status = str(task.get("status") or "-")
@@ -5053,60 +5109,41 @@ async def list_status_cmd(event):
         )
 
     lines.append("")
-    lines.append("Delete one status with: `/delstatus <task_id>`")
+    lines.append(t("liststatus_delete_hint", lang))
     await event.respond("\n".join(lines), parse_mode="md")
 
 
 @bot.on(events.NewMessage(pattern=r"^/delstatus (\S+)$"))
 async def delete_status_cmd(event):
+    lang = get_lang(event.sender_id)
     if event.sender_id != OWNER_ID:
-        await event.respond(t("admin_only", get_lang(event.sender_id)))
+        await event.respond(t("admin_only", lang))
         return
 
     task_id = (event.pattern_match.group(1) or "").strip()
     if not task_id:
-        await event.respond("Usage: `/delstatus <task_id>`", parse_mode="md")
+        await event.respond(t("delstatus_usage", lang), parse_mode="md")
         return
 
     deleted = delete_verify_task_status(task_id)
     if deleted:
         await event.respond(
-            f"✅ Status `{task_id}` deleted from persisted storage.", parse_mode="md"
+            t("delstatus_deleted", lang, task_id=task_id), parse_mode="md"
         )
     else:
-        await event.respond(f"⚠️ Status `{task_id}` not found.", parse_mode="md")
+        await event.respond(t("delstatus_not_found", lang, task_id=task_id), parse_mode="md")
 
 
 @bot.on(events.NewMessage(pattern=r"^/help$"))
 async def help_cmd(event):
     lang = get_lang(event.sender_id)
     if is_owner(event.sender_id):
-        admin_cmds = (
-            "\n\n**🔧 Admin Commands:**\n"
-            "`/addcredit <user_id> <amount>` — Add credits\n"
-            "`/stats` — Bot statistics\n"
-            "`/setlog <group_id>` — Set log group\n"
-            "`/liststatus [limit]` — List persisted verify status\n"
-            "`/delstatus <task_id>` — Delete one persisted status\n"
-        )
+        admin_cmds = t("help_admin_cmds", lang)
     else:
         admin_cmds = ""
 
     await event.respond(
-        f"❓ **Help**\n\n"
-        f"🎓 This bot helps you apply for **GitHub Education Pack**.\n\n"
-        f"**Commands:**\n"
-        f"`/start` — Main menu & dashboard\n"
-        f"`/topup` — Buy credit via QRIS\n"
-        f"`/help` — Show this help\n\n"
-        f"**Features:**\n"
-        f"🎓 Verify as Student or Teacher\n"
-        f"👥 Referral program (earn credits)\n"
-        f"📅 Daily check-in (earn credits)\n"
-        f"💳 Auto top-up credit via QRIS\n"
-        f"📊 Check application status\n"
-        f"🌐 Multi-language (EN/ID)\n"
-        f"{admin_cmds}",
+        t("help_text", lang, admin_cmds=admin_cmds),
         parse_mode="md",
     )
 
