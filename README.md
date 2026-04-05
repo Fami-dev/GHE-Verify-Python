@@ -120,8 +120,6 @@ python bot.py
 python api_server.py
 ```
 
-## Catatan Penting
+## Bantuan
 
-- Jangan upload file `.env` ke GitHub
-- Simpan session Telegram dengan aman
-- Gunakan API_SECRET yang kuat untuk production
+Jika memerlukan bantuan silahkan hubungi @arcvour (Telegram)
